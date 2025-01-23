@@ -197,6 +197,51 @@ export class HomeComponent implements OnInit {
 4. The async pipe subscribes to the obseravble making the data available to the view and also unsubscribes preventing memory leaks.
 
 
+### Avoiding duplicate HTTP requests
+
+The refactored approach is still not 100%. The following invokes the server twice, and this is because there are TWO subscriptions. This means we are making a _redundant_ call to the server. This can be seen by loading the page with Dev Tools open, and navigating to Network > Fetch/XHR:
+
+```ts
+ ngOnInit() {
+    const courses$ = this.coursesService.loadAllCourses()
+      .pipe(
+        map(courses => courses.sort(sortCoursesBySeqNo)
+      )
+    )
+
+// First subscription
+    this.beginnerCourses$ = courses$.pipe(
+      map((courses) =>
+        courses.filter((course) => course.category === "BEGINNER")
+      )
+    );
+
+// Second subscription
+    this.advancedCourses$ = courses$.pipe(
+      map((courses) =>
+        courses.filter((course) => course.category === "ADVANCED")
+      )
+    );
+  }
+
+  //We can also showcase how this happens by adding a third subscription. This will then show three requests on the network tab:
+  courses$.subscribe(val => console.log(val))
+  ```
+
+  To solve this, we can chain the `shareReplay()` operator onto the loadAllCourses observable:
+
+  ```ts
+    loadAllCourses(): Observable<Course[]> {
+    return this.http.get<Course[]>("/api/courses")
+      .pipe(
+        map(res => res["payload"]),
+        shareReplay()
+      )
+  }
+  ```
+
+  
+
 
 
 
