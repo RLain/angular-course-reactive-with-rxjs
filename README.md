@@ -240,7 +240,27 @@ The refactored approach is still not 100%. The following invokes the server twic
   }
   ```
 
-  
+  This will now only do one HTTP request when the service is invoked. No change was required to the ngOnit method on the component.
+
+  This is _almost always_ what we want in practise. We don't want data retrieval or data modification requests being triggered more than once. For most of the time when using the Angular HTTPClient, add shareReplay() to the observable (on the service).
+
+### Angular view: Layer Patterns - Smart vs Presentational Components
+
+This section starts by highlighting how the original home.component.html had two identical mat-card definitions with the only variance being the data: beginningCourse$ vs advancedCourse$.
+
+Due to the identical presentation nature it makes sense to have a single source of truth that can be reused by both scenarios.
+
+$ ng generate course name-of-component --project name-of-project e.g. ng generate component courses-card-list --project reactive-angular-course will create courses-card-list.ts
+
+A `presentational component` simply renders information provided to the component. It doesn't know where the data has come from, it simply needs to present that data. 
+
+Versus the home.comoponent.ts which knows about the service layer, knows where the data comes from, and knows how to prepare the observables. However it has very little information about how to display the information.
+
+The presentation component (courses-card-list.ts) doesn't know about the service layer of the application, instead it receives all its data via inputs.
+
+This approach can be very useful and distinctiong between smart and presentational components can be taken too far. Don't worry about making every component either smart or pure presentational....think of them as high level recipes opposed to strict best practises that must be followed at all costs.
+
+
 
 
 
