@@ -248,9 +248,29 @@ The refactored approach is still not 100%. The following invokes the server twic
 
 This section starts by highlighting how the original home.component.html had two identical mat-card definitions with the only variance being the data: beginningCourse$ vs advancedCourse$.
 
-Due to the identical presentation nature it makes sense to have a single source of truth that can be reused by both scenarios.
+Due to the identical presentation nature it makes sense to have a single source of truth that can be reused by both scenarios. We created a new component using the following command:
 
 $ ng generate course name-of-component --project name-of-project e.g. ng generate component courses-card-list --project reactive-angular-course will create courses-card-list.ts
+
+Then simply moved the card into this component, then on home.component.html simple pass in the type of courses when we invoke:
+
+```html
+    <mat-tab-group>
+
+        <mat-tab label="Beginners">
+
+          <courses-card-list [courses]="beginnerCourses$ | async"></courses-card-list>
+
+        </mat-tab>
+
+        <mat-tab label="Advanced">
+
+          <courses-card-list [courses]="advancedCourses$ | async"></courses-card-list>
+
+        </mat-tab>
+
+    </mat-tab-group>
+```
 
 A `presentational component` simply renders information provided to the component. It doesn't know where the data has come from, it simply needs to present that data. 
 
@@ -258,10 +278,10 @@ Versus the home.comoponent.ts which knows about the service layer, knows where t
 
 The presentation component (courses-card-list.ts) doesn't know about the service layer of the application, instead it receives all its data via inputs.
 
-This approach can be very useful and distinctiong between smart and presentational components can be taken too far. Don't worry about making every component either smart or pure presentational....think of them as high level recipes opposed to strict best practises that must be followed at all costs.
+This approach can be very useful, but distinguishing between smart and presentational components can be taken too far.... Don't worry about making every component either smart or pure presentational, rather think of them as high level recipes opposed to strict best practises that must be followed at all costs.
 
 
-
+### Data modification example in Reactive style
 
 
 
