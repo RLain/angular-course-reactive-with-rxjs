@@ -280,12 +280,110 @@ The presentation component (courses-card-list.ts) doesn't know about the service
 
 This approach can be very useful, but distinguishing between smart and presentational components can be taken too far.... Don't worry about making every component either smart or pure presentational, rather think of them as high level recipes opposed to strict best practises that must be followed at all costs.
 
+_______________________________________
 
-### Data modification example in Reactive style
+# Reactive Component Interaction
+
+## Decoupled component communication using a shared Service
+
+In this example, we created the LoadingComponent which is shared across multiple components at different levels of the tree. This component is used to indicate an interaction is being awaited from the backend (e.g. a spinner showing a DB response is required etc).
+
+ℹ️ Note to future self: The advantage of a shared service and decoupled componnent is when you have `multiple components making asynchronous calls, and you want a single loading spinner displayed for all of them`. Ergo `shared state`. For individual components where you don't have multiple calls awaiting a response, using the local state is fine aka having a showSpinner property and direct <mat-spinner> on the component itself.
+
+To create this shared service this we did the following:
+
+1. Defined the loading.component.html to include a mat-spinner
+2. Added `<loading></loading>` to the top level app.component.html
+3. Created the LoadingService (note this is referred to as an "API for the service") and leaving in its default configuration. 
+
+Unlike the CoursesService we _won't_ be defining the providedIn:'root' on the LoadingService Injectable as this indicates that we want the service to be a global singleton (only one instance of the service on the whole application). This won't be the case for the LoadingService as it might have multiple instances in the application. 
+
+4. Adding the LoadingService to the `providers` array on the top app.component.ts
+
+Providers: Configures the injector of this directive or component with a token that maps to a provider of a dependency.
+
+```ts
+@Component({
+  selector: "app-root",
+  templateUrl: "./app.component.html",
+  styleUrls: ["./app.component.css"],
+  standalone: false,
+  providers: [ LoadingService ], //Here
+})
+```
+
+5. Adding the private loadingService: LoadingService to the various components. Aka LoadingComponent, HomeComponent & CourseDialogComponent.
+
+```ts
+export class HomeComponent implements OnInit {
+  ...
+
+  constructor(private coursesService: CourseService,
+              private loadingService: LoadingService) {} //Here
+```
+
+By adopting a reactive design we make it very simple for different components at different levels of the Angular component tree to easily interact with the loading component in a decoupled way.
 
 
+## LoadingService Reactive API Design
 
+This is a continuation of the previous decoupled component lecture.
 
+We started by adding the Obseravble to the service
+
+```ts
+@Injectable()
+export class LoadingService {
+  loading$: Observable<boolean>
+}
+```
+
+We then updated the LoadingComponent constructor from private loadingService to `public loadingService` so it is accessible by the template of the component. We then consume the loadingService in the html using the async pipe:
+
+```html
+@if(loadingService.loading$ | async){
+<div class="spinner-container">
+  <mat-spinner></mat-spinner>
+</div>
+}
+```
+
+Next, on the LoadingService itself, we create three methods that we can then invoke in our various components:
+
+```ts
+@Injectable()
+export class LoadingService {
+  loading$: Observable<boolean>; //This has not yet been assigned a value
+
+  showLoadingUntilCompleted<T>(observable$: Observable<T>): Observable<T>{
+      return undefined //Logic to be added
+  }
+
+  loadingOn() {} //Logic to be added
+
+  loadingOff() {} //Logic to be added
+}
+```
+
+## Interaction using custom obserables and Behaviour Subject
+
+The most important part of the reactive design is now assigning the observable a value and emiting this value.
+
+Note in this lecture, Vasco explains that the RxJS library has two subject types:
+
+• `new Subject()`: A Subject is a special type of Observable that allows values to be multicasted to many Observers. Subjects are like EventEmitters.
+• `new BehaviorSubject()`: A variant of Subject that requires an initial value and emits its current value whenever it is subscribed to. - In general this one is recommended, this is a special type of subject that remembers the last value submitted by the subject. Better in general of async applications as we don't know the exact timings of the lifecycle of the component.
+
+The following initially emits the value of `false`:
+
+```ts
+  private loadingSubject = new BehaviorSubject()<boolean>(false);
+```
+
+We want to keept private to prevent other parts of the application changing the value. This needs to be controlled by the LoadingService. Any component outside of the service needs to be able to subscribe to the values, but _only_ the LoadingService must have control to emit the values.
+
+*Resume: Becca rewatch lecture 3.14. Only got to 5 mins points.*
+Link: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18304800#questions
 
 
 
