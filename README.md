@@ -371,8 +371,8 @@ The most important part of the reactive design is now assigning the observable a
 
 Note in this lecture, Vasco explains that the RxJS library has two subject types:
 
-• `new Subject()`: A Subject is a special type of Observable that allows values to be multicasted to many Observers. Subjects are like EventEmitters.
-• `new BehaviorSubject()`: A variant of Subject that requires an initial value and emits its current value whenever it is subscribed to. - In general this one is recommended, this is a special type of subject that remembers the last value submitted by the subject. Better in general of async applications as we don't know the exact timings of the lifecycle of the component.
+- `new Subject()`: A Subject is a special type of Observable that allows values to be multicasted to many Observers. Subjects are like EventEmitters.
+- `new BehaviorSubject()`: A variant of Subject that requires an initial value and emits its current value whenever it is subscribed to. - In general this one is recommended, this is a special type of subject that remembers the last value submitted by the subject. Better in general of async applications as we don't know the exact timings of the lifecycle of the component.
 
 The following initially emits the value of `false`:
 
