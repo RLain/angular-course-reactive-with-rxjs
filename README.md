@@ -367,12 +367,12 @@ export class LoadingService {
 
 ## Interaction using custom obserables and Behaviour Subject
 
-The most important part of the reactive design is now assigning the observable a value and emiting this value.
+The most important part of the reactive design is now assigning the observable a value and emiting this value. To do this we will use a `Subject`. They are very similar to observables in the sense that we can subscribe to it, with the added benefit of being able to `emit the value`. An observable is only a subsription and we can't control the values emitted. With a subject we can define `what` value to emit. 
 
 Note in this lecture, Vasco explains that the RxJS library has two subject types:
 
 - `new Subject()`: A Subject is a special type of Observable that allows values to be multicasted to many Observers. Subjects are like EventEmitters.
-- `new BehaviorSubject()`: A variant of Subject that requires an initial value and emits its current value whenever it is subscribed to. - In general this one is recommended, this is a special type of subject that remembers the last value submitted by the subject. Better in general of async applications as we don't know the exact timings of the lifecycle of the component.
+- `new BehaviorSubject()`: A variant of Subject that requires an initial value and emits its current value whenever it is subscribed to. - In general this one is recommended, `this is a special type of subject that remembers the last value` submitted by the subject. Better in general of async applications as we don't know the exact timings of the lifecycle of the component.
 
 The following initially emits the value of `false`:
 
@@ -380,11 +380,44 @@ The following initially emits the value of `false`:
   private loadingSubject = new BehaviorSubject()<boolean>(false);
 ```
 
-We want to keept private to prevent other parts of the application changing the value. This needs to be controlled by the LoadingService. Any component outside of the service needs to be able to subscribe to the values, but _only_ the LoadingService must have control to emit the values.
+We want to keep private to prevent other parts of the application changing the value. This needs to be controlled by the LoadingService. Any component outside of the service needs to be able to subscribe to the values, but _only_ the LoadingService must have control to emit the values.
 
-*Resume: Becca rewatch lecture 3.14. Only got to 5 mins points.*
-Link: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18304800#questions
+We then updated the loading$ observable 
+
+```ts
+  loading$: Observable<boolean> = this.loadingSubject.asObservable();
+```
+
+and added the values for emission in the methods:
+
+```ts
+  loadingOn() {
+    this.loadingSubject.next(true)
+  }
+
+  loadingOff() {
+    this.loadingSubject.next(false)
+  }
+```
+
+Next, we invoked the methods on an example component HomeComponent:
+
+```ts
+reloadCourses() {
+    this.loadingService.loadingOn() //Added this to turn on the loader
+
+    const courses$ = this.coursesService
+      .loadAllCourses()
+      .pipe(
+        map((courses) => courses.sort(sortCoursesBySeqNo)),
+        finalize(() =>  this.loadingService.loadingOff()) //Added this to turn off the loader
+      );
+
+    //...etc
+  }
+  ```
+
+`finalize()` = Returns an Observable that mirrors the source Observable, but will call a specified function when the source terminates on complete or error.
 
 
-
-
+👀 Resume section 3 lecture 15: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18305358#questions
