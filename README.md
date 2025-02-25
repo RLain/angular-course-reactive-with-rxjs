@@ -365,7 +365,7 @@ export class LoadingService {
 }
 ```
 
-## Interaction using custom obserables and Behaviour Subject
+## Interaction using custom observables and Behaviour Subject
 
 The most important part of the reactive design is now assigning the observable a value and emiting this value. To do this we will use a `Subject`. They are very similar to observables in the sense that we can subscribe to it, with the added benefit of being able to `emit the value`. An observable is only a subsription and we can't control the values emitted. With a subject we can define `what` value to emit. 
 
@@ -420,4 +420,60 @@ reloadCourses() {
 `finalize()` = Returns an Observable that mirrors the source Observable, but will call a specified function when the source terminates on complete or error.
 
 
-👀 Resume section 3 lecture 15: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18305358#questions
+## Reactive implementation finish
+
+In this lecture we finish the implementation of the LoadingService by providing a slightly more convenient API to control the loading indicator.
+
+The starting point was the code block above 👆.
+
+
+```ts
+//home.component.ts
+reloadCourses() {
+    const courses$ = this.coursesService
+        .loadAllCourses()
+        .pipe(
+            map((courses) => courses.sort(sortCoursesBySeqNo)),
+        );
+
+    // Less invasive design as requires less operators (no finalize()) etc
+
+    // We define this new observable that invokes the loading service
+    // Not we don't need to define the <Course[]> type here as it is inferred
+    const loadCourses$ = this.loadingService.showLoadingUntilCompleted(courses$)
+
+    // Then use this observable for both the following (note that courses$.pipe is now loadCourses$.pipe)
+    this.beginnerCourses$ = loadCourses$.pipe(
+        map((courses) =>
+            courses.filter((course) => course.category === "BEGINNER")
+        )
+    );
+
+    this.advancedCourses$ = loadCourses$.pipe(
+        map((courses) =>
+            courses.filter((course) => course.category === "ADVANCED")
+        )
+    );
+```
+
+```ts
+//loading.service.ts
+
+// Note we don't have to call <T>
+showLoadingUntilCompleted<T>(observable$: Observable<T>): Observable<T>{
+    return of(null) // This is a default observable (it only emits null) and allows us to create an observable chain.
+        .pipe(
+            tap(() => this.loadingOn()), // tap() allows us to trigger a side effect, in this case enable the loading indicator
+            concatMap(() => observable$), // Transforms the value into a new observable using the input observable
+            finalize(() => this.loadingOff()) // Once the input observable stops emitting any value and completes we turn off the loading indicator
+        )
+}
+```
+
+Main advantage: The loading indicator will only be turned on when the resulting observable by showLoaderUntilCompleted is subscribed too. And once finished will it turn off.
+A little bit less verbose and doesn't require adding finalize() throughout the application.
+
+## Angular Component providers property
+
+
+👀 Resume section 3 lecture 16: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18397324#questions
