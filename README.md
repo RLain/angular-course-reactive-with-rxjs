@@ -475,5 +475,48 @@ A little bit less verbose and doesn't require adding finalize() throughout the a
 
 ## Angular Component providers property
 
+Sometimes we may wish to have localised usage of the service. If we simply added `@Injectable({providedIn: 'root'})` to LoadingService this would
+create a `global` indicator. This may cause UX problems as it would dominate the screen and prevent any user interactions whilst enabled. 
+For example, when a user clicks "Edit" on a course card, then saves the course, this is a good use case for a `local` indicator. 
+To achieve this, because we don't have the top-level providedIn property,  we need to provide the LoadingService to each component
+we wish to use it in explictly...
+
+When we started this lecture, Vasco showed us that when we run the application and click the "Edit" button the course card we
+see this error in the console `core.mjs:6643 ERROR NullInjectorError: R3InjectorError(_AppModule)[_LoadingService -> _LoadingService]: 
+  NullInjectorError: No provider for _LoadingService!`
+
+To resolve this we needed to add the providers array to the component
+
+```ts
+@Component({
+    selector: "course-dialog",
+    templateUrl: "./course-dialog.component.html",
+    styleUrls: ["./course-dialog.component.css"],
+    providers: [LoadingService] // We added this to have a local instance of the service
+})
+export class CourseDialogComponent implements AfterViewInit {..etc}
+```
+
+We then had the standard additions to the course dialog component to make it physically render:
+
+```html
+<!--Addition of the following to under the title -->
+
+<loading></loading>
+```
+
+```ts
+  save() {
+    const changes = this.form.value;
+
+    const saveCourse$ = this.coursesService.saveCourse(this.course.id, changes) // We created this
+
+      this.loadingService.showLoadingUntilCompleted(saveCourse$) //then invoked this method
+      .subscribe((value) => { //and moved .subscribe to once the observable is finished emitting.
+        this.dialogRef.close(value);
+      });
+  }
+```
+
 
 👀 Resume section 3 lecture 16: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18397324#questions
