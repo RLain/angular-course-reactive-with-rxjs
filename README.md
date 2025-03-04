@@ -73,7 +73,7 @@ Meaning when we hit the HTTP Client uses /api, it leverages off the defined targ
 this.http.get('/api/courses').subscribe(..etc)
 ```
 
-### Oberserable
+### Observable
 
 The following creates an observable, which allows us to observe the behaviour:
 
@@ -191,10 +191,10 @@ export class HomeComponent implements OnInit {
 
 ### Advantages of the refactoring
 
-1. New service that can be reused throughut the application (CoorsesService)
+1. New service that can be reused throughout the application (CoursesService)
 2. No potential for callback hell. Everything is defined through observables
-3. The data in the component is no longer mutuable state variables, but rather obserables. We can't access the data but can subscribe to the obseravble.
-4. The async pipe subscribes to the obseravble making the data available to the view and also unsubscribes preventing memory leaks.
+3. The data in the component is no longer mutable state variables, but rather observables. We can't access the data but can subscribe to the obseravble.
+4. The async pipe subscribes to the observable making the data available to the view and also unsubscribes preventing memory leaks.
 
 
 ### Avoiding duplicate HTTP requests
