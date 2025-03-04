@@ -479,7 +479,7 @@ Sometimes we may wish to have localised usage of the service. If we simply added
 create a `global` indicator. This may cause UX problems as it would dominate the screen and prevent any user interactions whilst enabled. 
 For example, when a user clicks "Edit" on a course card, then saves the course, this is a good use case for a `local` indicator. 
 To achieve this, because we don't have the top-level providedIn property,  we need to provide the LoadingService to each component
-we wish to use it in explictly...
+we wish to use it in explicitly...
 
 When we started this lecture, Vasco showed us that when we run the application and click the "Edit" button the course card we
 see this error in the console `core.mjs:6643 ERROR NullInjectorError: R3InjectorError(_AppModule)[_LoadingService -> _LoadingService]: 
@@ -519,4 +519,89 @@ We then had the standard additions to the course dialog component to make it phy
 ```
 
 
-👀 Resume section 3 lecture 16: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18397324#questions
+## Error handling and the Messages Component
+
+At the start of this lecture we navigated to the /src/app/messages directory to look at the empty MessagesComponent. The
+starting point were empty ngOnit{} and onClose{} methods.
+
+To kick off, we created a basic skeleton for the html file
+
+```html
+@if (showMessages) {
+<div class="messages-container">
+    @for (error of errors; track error) {
+    <div class="message"> {{ error }}</div>
+    }
+
+    <mat-icon class="close" (click)="onClose()">close</mat-icon>
+</div>
+}
+```
+
+We then created the messages.service.ts injectable. Note this is a local injectable so no providedIn: root
+
+```ts
+@Injectable()
+export class MessagesService {
+    private subject = new BehaviorSubject<string[]>([]) //Initial value is an empty array
+
+    errors$: Observable<string[]> = this.subject.asObservable()
+        .pipe(
+            //We then filter out the empty array as we don't want to render the error message div.
+            filter(messages => messages && messages.length > 0)
+        )
+
+    showErrors(...errors: string[]){
+        this.subject.next(errors)
+    }
+}
+```
+
+And we added the properties and controls to messages.component.ts
+
+```ts
+export class MessagesComponent implements OnInit {
+    errors$: Observable<string[]>
+    showMessages = false
+
+    constructor(public messagesService: MessagesService) {
+        console.log("Created messages component")
+    }
+
+    ngOnInit() {
+        this.errors$ = this.messagesService.errors$
+            .pipe(
+                tap(() => this.showMessages = true)
+            )
+    }
+
+    onClose() {
+        this.showMessages = false
+    }
+}
+```
+
+On the HomeComponent we also added in the error handling
+
+```ts
+ reloadCourses() {
+    const courses$ = this.coursesService
+        .loadAllCourses()
+        .pipe(
+            map((courses) => courses.sort(sortCoursesBySeqNo)),
+            //We added the following:
+            catchError(err => {
+                const message = "Could not load courses"
+                this.messagesService.showErrors(message)
+
+                console.log('log_outcome', message, err)
+
+                return throwError(err) // This allows us to terminate the observable chain (ends its lifecycle)
+            })
+        );
+```
+
+
+To force an error, we navigated to getAllCourses() under the /server dir and added in the express mechanism to return res.status(500).
+
+👀 Resume section 3 lecture 20: https://www.udemy.com/course/rxjs-reactive-angular-course/
