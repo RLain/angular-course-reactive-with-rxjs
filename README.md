@@ -629,7 +629,7 @@ save() {
         )
 ```
 
-![Screenshot 2025-03-11 at 08.28.27.png](/angular-course-reactive-with-rxjs/reactive-angular-course/course-assets/Screenshot%202025-03-11%20at%2008.28.27.png)
+![Screenshot 2025-03-11 at 08.28.27.png](/reactive-angular-course/course-assets/Screenshot%202025-03-11%20at%2008.28.27.png)
 
 To force an error, we navigated to `saveCourse()` under the /server dir and added in the express mechanism to return res.status(500).
 
