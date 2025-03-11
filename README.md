@@ -602,6 +602,52 @@ On the HomeComponent we also added in the error handling
 ```
 
 
-To force an error, we navigated to getAllCourses() under the /server dir and added in the express mechanism to return res.status(500).
+To force an error, we navigated to `getAllCourses()` under the /server dir and added in the express mechanism to return res.status(500).
 
-👀 Resume section 3 lecture 20: https://www.udemy.com/course/rxjs-reactive-angular-course/
+## Local error handling on an Angular material component.
+
+For this lecture, the goal is to render an error message on a dialog component. This is because it makes UX sense
+for a user to see the error on the modal (the context space), opposed to seeing it overlay across the main app view.
+
+This was a simple addition of the <messages></messages> instance to the course-dialog.component.html in the location
+we want it to render, along with adding the MessagesService to the CourseDialogComponent in the `providers` array
+and the as a `property` in the constructor. To then trigger the error we added this `.pipe()` to the save() method to catch
+the error and invoke the messages service:
+
+```ts
+save() {
+    const changes = this.form.value;
+
+    const saveCourse$ = this.coursesService.saveCourse(this.course.id, changes)
+        .pipe(
+            catchError(err => {
+                const message = "Could not save the course"
+                console.log(message, err)
+                this.messagesService.showErrors(message)
+                return throwError(err)
+            })
+        )
+```
+
+![Screenshot 2025-03-11 at 08.28.27.png](reactive-angular-course/course-assets/Screenshot%202025-03-11%20at%2008.28.27.png)
+
+To force an error, we navigated to `saveCourse()` under the /server dir and added in the express mechanism to return res.status(500).
+
+## Angular statement management - When is it needed and why?
+
+State Management is a term that defines a way we can store data, modify it, and react to its changes.
+
+So far on this course (everything above), the application for the most part has remained `stateless`. Stateless solutions are 
+often suitable for most applications, however there are specific situations/use cases where it makes sense to track the state for improved 
+UX etc (reducing calls to the backend and loading times).
+
+Managing states in an application will make it more complex, but the UX improvements for the user makes it worth it.
+
+Vasco's general recommendation is `try to keep your application stateless, and only manage states if needed for UX reasons`. 
+Long backend delays etc. A completely stateless frontend solution tends to work well for a number of applications.
+
+📚*Additional reading*
+- [Angular State Management: A Comparison of the Different Options Available - 2024](https://dev.to/chintanonweb/angular-state-management-a-comparison-of-the-different-options-available-100e)
+- 
+
+👀 Resume section 3 lecture 22: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18497280#questions
