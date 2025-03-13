@@ -648,6 +648,130 @@ Long backend delays etc. A completely stateless frontend solution tends to work 
 
 📚*Additional reading*
 - [Angular State Management: A Comparison of the Different Options Available - 2024](https://dev.to/chintanonweb/angular-state-management-a-comparison-of-the-different-options-available-100e)
-- 
 
-👀 Resume section 3 lecture 22: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18497280#questions
+
+## Implementation of a Store Service
+
+The home.component.ts at present is completely stateless. Using the reloadCourses() method, we invoke
+the this.coursesService.loadAllCourses() from the CoursesService. This in turn uses the Angular HTTP Client to fetch 
+the data from the backend, once fetched the view then renders this on the home.component.html using the async pipe and
+converts it into HTML. This means we lose all references to the data, resulting in another call needing to be made when we
+need to reload the coursed again.
+
+```html
+<courses-card-list [courses]="beginnerCourses$ | async" <!--beginnerCourses$ is immediately converted into html-->
+                   (coursesChanged)="reloadCourses()"
+></courses-card-list>
+```
+
+An alternative approach is to store the data on the client's side in memory and then reuse it.
+
+To do this, we start by creating a new type of Service, named a Store to make it clear to others that we are _storing data_.
+The file is created under the /services dir with a name of courses.store.ts.
+
+This Store is set up the same as a Service, using the angular Injectable decorator. We want to make this a `global application
+singleton` so that any part of the course can access the course data (there is no good reason for different parts of the application
+to have their own separate copies of the course data), and this is achieved by using the `providedIn: 'root` property. This means we only have one instance of CoursesStore available for the application to use.
+
+```ts
+import {Injectable} from "@angular/core";
+import {Observable} from "rxjs";
+import {Course, sortCoursesBySeqNo} from "../model/course";
+import {map} from "rxjs/operators";
+
+@Injectable({
+    providedIn: 'root'
+})
+export class CoursesStore {
+    courses$: Observable<Course[]>
+
+    // Constructor
+    filterByCategory(category: string): Observable<Course[]> {
+        return this.courses$.pipe(
+            map(courses =>
+                courses.filter(course => course.category === category)
+                    .sort(sortCoursesBySeqNo)
+            )
+        )
+    }
+}
+```
+We then head to HomeComponent and inject into the constructor:
+
+```ts
+  constructor(private coursesService: CourseService,
+              private coursesStore: CoursesStore,
+...etc
+```
+
+Next, because we now will use the CoursesStore to manage our course data, we can remove all the coursesService.loadCourses
+logic and the LoadingService logic as this will be managed by our CoursesStore:
+
+Original:
+```ts
+  reloadCourses() {
+    const courses$ = this.coursesService
+        .loadAllCourses()
+        .pipe(
+            map((courses) => courses.sort(sortCoursesBySeqNo)),
+            catchError(err => {
+                const message = "Could not load courses"
+                this.messagesService.showErrors(message)
+
+                console.log('log_outcome', message, err)
+
+                return throwError(err) // This allows us to terminate the observable chain (ends its lifecycle)
+            })
+        );
+
+    // Less invasive design as requires less operators (no finalize()) etc
+
+    // We define this new observable that invokes the loading service
+    // Not we don't need to define the <Course[]> type here as it is inferred
+    const loadCourses$ = this.loadingService.showLoadingUntilCompleted(courses$)
+
+    // Then use this observable for both the following
+    this.beginnerCourses$ = loadCourses$.pipe(
+        map((courses) =>
+            courses.filter((course) => course.category === "BEGINNER")
+        )
+    );
+
+    this.advancedCourses$ = loadCourses$.pipe(
+        map((courses) =>
+            courses.filter((course) => course.category === "ADVANCED")
+        )
+    );
+}
+```
+
+New:
+```ts
+ reloadCourses() {
+    this.beginnerCourses$ = this.coursesStore.filterByCategory("BEGINNER")
+
+    this.advancedCourses$ = this.coursesStore.filterByCategory("ADVANCED")
+  }
+```
+
+Now we need to implement the CoursesStore observable logic.
+
+The following code has some important nuances to explain. A critical approach here is enforcing encapsulation which is best practise
+to manage states effectively, ensuring controlled updates via methods and improving maintainability and unintended modifications.
+
+```ts
+export class CoursesStore {
+    // The private keyword ensures that this variable can only be accessed within the class and not from outside.
+    // Methods inside CoursesStore can modify the subject e.g. filterByCategory()
+    private subject = new BehaviorSubject<Course[]>([])
+    // This following is a public observable that emits the current state of courses. 
+    // The use of the asObservable() method ensures that consumers cannot modify the subject (this enforces encapsulation)
+    // Ergo this becomes a read-only value.
+    courses$: Observable<Course[]> = this.subject.asObservable()
+```
+
+If we opted to use `public subject = new BehaviorSubject<Course[]>([])` this could have confusing and dire consequences for
+the store's state becoming inconsistent or corrupted, with any other parts of the app listening to changes being affected unexpectedly.
+Other issues that could arise are race condition problems, and overwriting/losing data. 
+
+👀 Resume section 3 lecture 23: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18499070#questions
