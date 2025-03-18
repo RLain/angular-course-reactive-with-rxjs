@@ -669,9 +669,10 @@ An alternative approach is to store the data on the client's side in memory and 
 To do this, we start by creating a new type of Service, named a Store to make it clear to others that we are _storing data_.
 The file is created under the /services dir with a name of courses.store.ts.
 
-This Store is set up the same as a Service, using the angular Injectable decorator. We want to make this a `global application
+This Store is set up the same as a Service, using the Angular Injectable decorator. We want to make this a `global application
 singleton` so that any part of the course can access the course data (there is no good reason for different parts of the application
-to have their own separate copies of the course data), and this is achieved by using the `providedIn: 'root` property. This means we only have one instance of CoursesStore available for the application to use.
+to have their own separate copies of the course data), and this is achieved by using the `providedIn: 'root` property. 
+This means we only have one instance of CoursesStore available for the application to use.
 
 ```ts
 import {Injectable} from "@angular/core";
@@ -762,16 +763,97 @@ to manage states effectively, ensuring controlled updates via methods and improv
 ```ts
 export class CoursesStore {
     // The private keyword ensures that this variable can only be accessed within the class and not from outside.
-    // Methods inside CoursesStore can modify the subject e.g. filterByCategory()
+    // Only methods inside CoursesStore can modify the subject e.g. filterByCategory()
     private subject = new BehaviorSubject<Course[]>([])
-    // This following is a public observable that emits the current state of courses. 
+    // This following is a public observable that emits the current state of courses that the consumers subscribe too.
     // The use of the asObservable() method ensures that consumers cannot modify the subject (this enforces encapsulation)
     // Ergo this becomes a read-only value.
     courses$: Observable<Course[]> = this.subject.asObservable()
 ```
 
-If we opted to use `public subject = new BehaviorSubject<Course[]>([])` this could have confusing and dire consequences for
+ℹ️If we opted to use `public subject = new BehaviorSubject<Course[]>([])` this could have confusing and dire consequences for
 the store's state becoming inconsistent or corrupted, with any other parts of the app listening to changes being affected unexpectedly.
-Other issues that could arise are race condition problems, and overwriting/losing data. 
+Other issues that could arise are race condition problems, and overwriting/losing data.
 
-👀 Resume section 3 lecture 23: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18499070#questions
+We then added the required dependancies to the constructor, along with setting up the loadAllCourses method:
+
+```ts
+  // Constructor
+constructor(private http: HttpClient,
+            private loading: LoadingService,
+            private messagesService: MessagesService) {
+
+    // 1) This will only be invoked once during the application's lifecycle
+    this.loadAllCourses()
+}
+
+//...etc
+
+// 2) And this being private means it can't be invoked by the application
+private loadAllCourses() {
+    const loadCourses$ = this.http.get<Course[]>('/api/courses')
+        .pipe(
+            map(response => response["payload"]),
+            catchError(err => {
+                const message = "Could not load courses"
+                this.messagesService.showErrors(message)
+
+                console.log('log_outcome', message, err)
+                return throwError(err)
+            }),
+            tap(courses => this.subject.next(courses))
+        )
+    this.loading.showLoadingUntilCompleted(loadCourses$)
+        .subscribe() //This subscription is *critical*. Without it nothing will happen!
+}
+```
+
+Before the application can run, we need to allow CoursesStore to utilise the two services: LoadingService & MessagesService.
+At this point, prior to fixing this, if we try and run the application we will get the following error: `NullInjectorError: No provider for _LoadingService!`
+This is because the services are presently only defined at the level of the application's root component (app.component.ts inside the
+providers array), meaning they are only visible to the application root component and other child components.
+It is not visible to global singletons such as the CoursesStore service. To solve this, we are going to move the definition of the services
+instances from our `app.component.ts`
+
+📚*Additional reading*: https://refactoring.guru/design-patterns/singleton
+
+
+```ts
+@Component({
+    selector: "app-root",
+    templateUrl: "./app.component.html",
+    styleUrls: ["./app.component.css"],
+    standalone: false,
+    providers: [ // <- Here. We remove this array in totality.
+        LoadingService,
+        MessagesService
+    ],
+})
+export class AppComponent implements OnInit {//..etc}
+```
+
+to our `app.module.ts` file:
+
+```ts
+  providers: [
+    provideHttpClient(withInterceptorsFromDi()),
+    LoadingService, //Added this
+    MessagesService //and this
+]
+```
+
+Once the above is done, start up the application and server, then navigate between pages e.g. About -> Courses -> About -> Courses. In the Network tab
+you can see that the courses http request was only invoked once, which is exactly what we want.
+
+Vasco then showcased how there is a data modification UX issue, if we click 'Edit' on a course and rename it and save. The name persists unless the usr refreshes the screen.
+This will be the focus of the next lecture.
+
+Lastly, he reiterated that both the LoadingService and MessagesService have *multiple* instances in the application, both at the root of the application inside the `app.module.ts` file
+and also local instances such as on the `course.dialog.ts` file, where the service is explictly defined in the @Component -> providers array.
+
+
+## Store optimistic data modification operations
+
+
+
+👀 Resume section 3 lecture 24: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18609440#questions
