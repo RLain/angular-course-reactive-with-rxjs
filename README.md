@@ -854,6 +854,97 @@ and also local instances such as on the `course.dialog.ts` file, where the servi
 
 ## Store optimistic data modification operations
 
+The idea with optimistic updates is that the application will assume that the server will respond 
+“It was a success. You accomplished your goal. Whatever you needed me to do, I did it.”...It’s a technique everyone uses 
+to improve the user experience by making the application feel like its more responsive. [Source](https://medium.com/@kyledeguzmanx/what-are-optimistic-updates-483662c3e171)
+
+The goal of this section 
+
+1) The first objective is to modify the data immediately in memory, and emit the value of the data to the courses$ observable.
+Which allows it to be used throughout the application such as closing the dialog and rendering the updated value on the UI (note
+this is optimistic because the server won't have yet returned a response)
+2) We then in parallel request the action on the server, and then can respond if it throws an error
+
+To achieve this, we created a new method on the CoursesStore:
+
+```ts
+ // Partial simply means the object passed in will not follow _all_ the rules defined in the Course interface
+saveCourse(courseId: string, changes: Partial<Course>): Observable<any> {
+    //a) We first need to modify the data in memory. The following is the optimistic data modification
+    const courses = this.subject.getValue() //This returns us the last value of the subject (Noting that this is the benefit of using Behaviour subject)
+
+    const index = courses.findIndex(course => course.id === courseId)
+
+    const newCourse: Course = {
+    ...courses[index],
+    ...changes
+}
+
+const newCourses: Course[] = courses.slice(0) //Creates a copy of the entire Courses array
+newCourse[index] = newCourse
+
+// This emits the new updated courses array, noting that this is _only_ present on the Client side.
+this.subject.next(newCourses)
+
+// b) We now need to send the updated data to the Server
+return this.http.put(`api/courses/${courseId}`, changes)
+    .pipe(
+        catchError(err => {
+            const message = "Could not save course"
+            console.log('log_outcome', message, err)
+            this.messagesService.showErrors(message)
+            return throwError(err)
+        }),
+        shareReplay() //This will only do one HTTP request when the service is invoked.
+    )
+}
+```
+
+And radically simplified the course-dialog.component.ts save() method which previously ran the loadingService and messagesService.
+
+```ts
+save() {
+    // This has been updated to an optimistic save strategy
+    const changes = this.form.value
+
+    this.coursesStore.saveCourse(this.course.id, changes).subscribe()
+
+    //We now inform the close method of the changes in case of any issues
+    this.dialogRef.close(changes)
+  }
+```
+
+Finally, we simplified the home.component.html and removed the reloadCourses() method as we no longer need to invoke the server
+due to the optimistic saving:
+
+```html
+<!--From this....-->
+  <mat-tab label="Beginners">
+    <courses-card-list
+            [courses]="beginnerCourses$ | async"
+            (coursesChanged)="reloadCourses()"
+    ></courses-card-list>
+</mat-tab>
+
+<!--To this....-->
+<mat-tab label="Beginners">
+    <courses-card-list
+            [courses]="beginnerCourses$ | async"
+    ></courses-card-list>
+</mat-tab>
+```
+
+We can now see the benefit of the optimistic modification.
+
+Here the user can see the change of the name despite the server side PUT request being pending
+
+![optimistic-modification-pending.png](course-assets/optimistic-modification-pending.png)
+
+Then we see the server side complete
+
+![optimistic-modification-completed.png](course-assets/optimistic-modification-completed.png)
+
+# Authentication State Management
 
 
-👀 Resume section 3 lecture 24: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18609440#questions
+👀 Resume section 4 lecture 26: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18610542#questions
