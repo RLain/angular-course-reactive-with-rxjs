@@ -946,5 +946,75 @@ Then we see the server side complete
 
 # Authentication State Management
 
+We started this lecture by creating a new file `auth.store.ts` in the /services dir. The AuthenticationStore
+will keep in memory the value of the user profile, and we started by creating the following skeleton:
+
+```ts
+import {Injectable} from "@angular/core";
+import {User} from "../model/user";
+import {BehaviorSubject, Observable} from "rxjs";
+
+@Injectable({
+    providedIn: 'root'
+})
+export class AuthStore {
+    isLoggedIn$: Observable<boolean>
+    isLoggedOut$: Observable<boolean>
+    user$: Observable<User> = this.subject.asObservable()
+
+    login(email: string, password: string): Observable<User> {
+        
+        this.subject.next()
+
+    }
+
+    logout() {
+
+    }
+
+}
+```
+
+We then started building out the AuthenticationStore, note the clear patterns forming:
+1) Define the observable e.g.  user$: Observable<User> = this.subject.asObservable(). Remember this ensures encapsulation.
+2) Define the subject ergo private subject = new BehaviorSubject<User>(null). Remember this must always be private.
+3) Emit a value using next() ergo this.subject.next(user) 
+   a) via the pipe() and tap() operators
+   b) With shareReplay() ensuring subscribers reuse the emitted login response instead of triggering multiple HTTP calls.
+
+```ts
+@Injectable({
+    providedIn: 'root'
+})
+export class AuthStore {
+    isLoggedIn$: Observable<boolean>
+    isLoggedOut$: Observable<boolean>
+    private subject = new BehaviorSubject<User>(null)
+    user$: Observable<User> = this.subject.asObservable()
+
+    constructor(private http: HttpClient) {
+        this.isLoggedIn$ = this.user$.pipe(
+            map(user => !!user) //Double negation converts this to true if the user exists, and false if they don't.
+        )
+
+        this.isLoggedOut$ = this.isLoggedIn$.pipe(
+            map(loggedIn => !loggedIn)
+        )
+    }
+
+    login(email: string, password: string): Observable<User> {
+        return this.http.post<User>('/api/login', {email, password})
+            .pipe(
+                tap(user => this.subject.next(user)),
+                shareReplay()
+            )
+    }
+
+    logout() {
+        this.subject.next(null) //Null = that the user has logged out
+    }
+}
+```
+
 
 👀 Resume section 4 lecture 26: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18610542#questions
