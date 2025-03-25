@@ -1017,4 +1017,4 @@ export class AuthStore {
 ```
 
 
-👀 Resume section 4 lecture 26: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18610542#questions
+👀 Resume section 4 lecture 28: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18785530#questions
