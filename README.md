@@ -1016,5 +1016,70 @@ export class AuthStore {
 }
 ```
 
+We now integrate the AuthStore with the rest of the application that needs to use it.
 
-👀 Resume section 4 lecture 28: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18785530#questions
+1) We added the AuthStore to LoginComponent, take note of the .subscribe() usage for the observable.
+
+```ts
+export class LoginComponent implements OnInit {
+   form: FormGroup;
+
+   constructor(
+           private authStore: AuthStore
+           //...etc
+   ){}
+   
+login() {
+    const val = this.form.value;
+
+    this.authStore.login(val.email, val.password)
+      .subscribe(
+        () => {
+          this.router.navigate(['/courses']);
+        },
+        error => {
+          alert('Login failed!');
+        }
+      )
+
+  }
+```
+
+2) We then added the AuthStore to the AppComponent, specifically take note of the public comment below!
+
+```ts
+export class AppComponent implements OnInit {
+   //Note the authStore must be *public* in order to use the observables in the HTML 
+   // e.g. @if(authStore.isLoggedOut$ | async) etc
+   constructor(public authStore: AuthStore) {
+   }
+
+   ngOnInit() {
+   }
+
+   logout() {
+      this.authStore.logout()
+   }
+}
+```
+
+```html
+@if (authStore.isLoggedOut$ | async) {
+   <a mat-list-item routerLink="login">
+           <mat-icon>account_circle</mat-icon>
+           <span>Login</span>
+           </a>
+}
+
+@if (authStore.isLoggedIn$ | async) {
+   <a mat-list-item (click)="logout()">
+           <mat-icon>exit_to_app</mat-icon>
+           <span>Logout</span>
+           </a>
+}
+```
+
+⚠️ Once we finished lecture 28, there was an issue with the workflow, where once a user logins and then the page
+is refreshed, the returned back to a logged out state. This will be addedd in lecture 29.
+
+👀 Resume section 4 lecture 29: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18785634#questions
