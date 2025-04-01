@@ -1080,6 +1080,81 @@ export class AppComponent implements OnInit {
 ```
 
 ⚠️ Once we finished lecture 28, there was an issue with the workflow, where once a user logins and then the page
-is refreshed, the returned back to a logged out state. This will be addedd in lecture 29.
+is refreshed, the returned back to a logged out state. This will be added in lecture 29.
 
-👀 Resume section 4 lecture 29: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18785634#questions
+### Browser refresh support with local storage
+
+The goal of this lecture was to persist the logged in/out state of the user when they refresh. A browser
+has local storage which is a small key/value database that can we used to storage data (which persists on refresh).
+
+To get started, we added a new variable to the top of the auth.store.ts file:
+
+```ts
+// This is the key we will use to assign values to in the browser's local storage
+const AUTH_DATA = "auth_data"
+```
+
+We then need to store the user data when they login into the localStorage
+
+```ts
+  login(email: string, password: string): Observable<User> {
+   return this.http.post<User>('/api/login', {email, password})
+           .pipe(
+                   //This is the best place to save the details to local storage:
+                   tap(user => {
+                              this.subject.next(user);
+                              //We have to convert user to a string otherwise we will get a compilation error
+                              localStorage.setItem(AUTH_DATA, JSON.stringify(user));
+                           }
+                   ),
+                   shareReplay()
+           )
+}
+```
+
+Some additional intel and reading on the localStorage API:
+
+```md
+var localStorage: Storage
+ 
+The localStorage read-only property of the window  interface allows you to access a Storage  
+object for the Document 's origin ; the stored data is saved across browser sessions.
+```
+🔗Additional reading: [Window: localStorage property](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage)
+
+Next, At the time of application start up time, whenever the AuthStore
+is created, we need to check if the user profile is there or not, and if it is there emit it to the rest of the application.
+
+```ts
+  constructor(private http: HttpClient) {
+   ...etc
+   
+   //1) When the application is started we need to check if there is any data inside the local storage on the browser
+   const user = localStorage.getItem(AUTH_DATA);
+
+   //2) And if yes, then emit to the application
+   if (user) {
+      this.subject.next(JSON.parse(user))
+   }
+}
+```
+
+Lastly, we need to remove the user data when the user logs out
+
+```ts
+ logout() {
+    this.subject.next(null)
+    //We need to clear the storage data on logout.
+    localStorage.removeItem(AUTH_DATA);
+  }
+```
+
+![local-storage-auth_data.png](course-assets/local-storage-auth_data.png)
+
+
+# Master-Detail UI Pattern (with built-in State Management)
+
+
+
+
+👀 Resume section 5 lecture 30: https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/18786002#overview
