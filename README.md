@@ -1487,16 +1487,16 @@ We then built out the Lesson html file
 ```
 
 ## Summary:
-• We have used a top-level smart component the SearchLessonsComponent to store the data we retrieved from the backend 
+- We have used a top-level smart component the SearchLessonsComponent to store the data we retrieved from the backend 
 in a member variable. While this component is around in memory, the data will also be kept in memory so we don't have to fetch again 
 from the backend
-• We used presentational components to present either the Master table, or Detail of the lesson
-• To share the data between the smart component and presentational lesson component, we simply used a local member variable (activeLesson)
+- We used presentational components to present either the Master table, or Detail of the lesson
+- To share the data between the smart component and presentational lesson component, we simply used a local member variable (activeLesson)
 and an angular component input (@Input() lesson?: Lesson)
-• No shared service needed
-• No centralised state management required
-• Instead we have used state that is only present at the level of a particular component which has an added advantage that
+- No shared service needed
+- No centralised state management required
+- Instead we have used state that is only present at the level of a particular component which has an added advantage that
 when the component gets destroyed, the state also gets destroyed.
-• This is a great feature to have in particular when using search results 
+- This is a great feature to have in particular when using search results 
 
 👀 Resume section 6 lecture 34 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19108776#questions
