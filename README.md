@@ -1499,4 +1499,72 @@ and an angular component input (@Input() lesson?: Lesson)
 when the component gets destroyed, the state also gets destroyed.
 - This is a great feature to have in particular when using search results 
 
-👀 Resume section 6 lecture 34 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19108776#questions
+# The Single Data Observable Pattern
+
+In this lecture, we started by quickly updating the CourseComponent to show details of the lessons it includes
+when a user clicks the 'View course' button. We created two observables `course$` and `lessons$` and then two 
+corresponding methods on the CourseService:
+
+```ts
+@Component({
+  selector: 'course',
+  templateUrl: './course.component.html',
+  styleUrls: ['./course.component.css'],
+  standalone: false
+})
+export class CourseComponent implements OnInit {
+  course$: Observable<Course>;
+  lessons$: Observable<Lesson[]>;
+
+  constructor(private courseService: CourseService,
+              private route: ActivatedRoute) {
+  }
+
+  ngOnInit() {
+    const courseId = parseInt(this.route.snapshot.paramMap.get("courseId"))
+      
+    this.course$ = this.courseService.loadCourseById(courseId)
+      
+    // This is useful for debugging an Obseravble:
+      this.course$.subscribe({
+      next: course => console.log('course emitted:', course),
+      error: err => console.error('course$ error:', err)
+    });
+
+    this.lessons$ =  this.courseService.loadAllCourseLessons(courseId)
+  }
+}
+```
+
+New methods added to CourseService. Note I incorrectly added the map() method to the loadCourseById function which
+emitted an undefined output as couldn't find the payload path:
+
+```ts
+ loadCourseById(courseId: number): Observable<Course>{
+    return this.http.get<Course>(`/api/courses/${courseId}`)
+        .pipe(
+            //map(res => res["payload"]), -> This was the problem and shouldn't be included!
+            shareReplay()
+        )
+}
+
+loadAllCourseLessons(courseId: number): Observable<Lesson[]> {
+    return this.http.get<Lesson[]>("/api/lessons", {
+        params: {
+            courseId: courseId.toString(),
+            pageSize: "10000" //Increased to a high number to ensure we retrieve all lessons
+        }
+    })
+        .pipe(
+            map(response => response["payload"]), //Extracts the payload property
+            shareReplay()
+        )
+}
+```
+
+At the end of the intro lecture, Vasco showcased how when a user clicks 'View course' there is a small delay where
+the page is blank. In the next lecture we willl implement the Single Data Obseravble Pattern which will address
+both the delay, and remove the need for nested @if observable sections in the html.
+
+
+👀 Resume section 6 lecture 36 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19110222#questions
