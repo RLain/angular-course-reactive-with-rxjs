@@ -1562,9 +1562,183 @@ loadAllCourseLessons(courseId: number): Observable<Lesson[]> {
 }
 ```
 
+```html
+@if (course$ | async; as course) {
+<div class="course">
+    <h2>{{ course?.description }}</h2>
+
+    <img class="course-thumbnail" [src]="course?.iconUrl">
+
+    <table class="lessons-table mat-elevation-z7">
+
+        <thead>
+        <th>#</th>
+        <th>Description</th>
+        <th>Duration</th>
+        </thead>
+
+        @if (lessons$ | async; as lessons) {
+        @for (lesson of lessons; track lesson.id) {
+        <tr class="lesson-row">
+            <td class="seqno-cell">{{ lesson.seqNo }}</td>
+            <td class="description-cell">{{ lesson.description }}</td>
+            <td class="duration-cell">{{ lesson.duration }}</td>
+        </tr>
+        }
+        }
+    </table>
+</div>
+}
+```
+
 At the end of the intro lecture, Vasco showcased how when a user clicks 'View course' there is a small delay where
-the page is blank. In the next lecture we willl implement the Single Data Obseravble Pattern which will address
+the page is blank. In the next lecture we will implement the Single Data Observable Pattern which will address
 both the delay, and remove the need for nested @if observable sections in the html.
 
+This small delay is caused by waiting for two observables to emit values. We will now refactor our template to use a single observable hence the Single Observable Data Pattern.
 
-👀 Resume section 6 lecture 36 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19110222#questions
+We started by combining the observables:
+
+```ts
+interface CourseData {
+    course: Course;
+    lessons: Lesson[]
+}
+
+@Component({
+    selector: 'course',
+    templateUrl: './course.component.html',
+    styleUrls: ['./course.component.css'],
+    standalone: false
+})
+export class CourseComponent implements OnInit {
+    courseData$: Observable<CourseData>
+
+    constructor(private courseService: CourseService,
+                private route: ActivatedRoute) {
+    }
+
+    ngOnInit() {
+        const courseId = parseInt(this.route.snapshot.paramMap.get("courseId"))
+
+        // We change these to local variables this. -> const
+        const course$ = this.courseService.loadCourseById(courseId)
+        const lessons$ = this.courseService.loadAllCourseLessons(courseId)
+
+        // 1) Note that combineLatest returns an Observable array
+        this.courseData$ = combineLatest([course$, lessons$])
+            // 2) So we need to use pipe() and map() to convert the array to the courseData object we need
+            .pipe(
+                map(([course, lessons]) => {
+                    return {
+                        course,
+                        lessons
+                    }
+                }),
+                tap(console.log)
+            )
+    }
+}
+```
+And using this combined data in our template:
+
+```html
+@if (courseData$ | async; as courseData) {
+<div class="course">
+    <h2>{{ courseData.course?.description }}</h2>
+
+    <img class="course-thumbnail" [src]="courseData.course?.iconUrl">
+
+    <table class="lessons-table mat-elevation-z7">
+
+        <thead>
+        <th>#</th>
+        <th>Description</th>
+        <th>Duration</th>
+        </thead>
+
+        @for (lesson of courseData.lessons; track lesson.id) {
+        <tr class="lesson-row">
+            <td class="seqno-cell">{{ lesson.seqNo }}</td>
+            <td class="description-cell">{{ lesson.description }}</td>
+            <td class="duration-cell">{{ lesson.duration }}</td>
+        </tr>
+        }
+    </table>
+</div>
+}
+```
+
+However, this new combined approach now requires _all_ the data to have been emitted by the observable including
+both course and lessons. For an improved UX, we want to render data as it is available such as the course name and image
+
+We also added a small improvement to the UI to only render the table once courseData.lessons.length is greater than 0 to prevent
+the user from seeing an empty table with headers.
+
+```ts
+  ngOnInit() {
+    const courseId = parseInt(this.route.snapshot.paramMap.get("courseId"))
+
+    //Adding pipe() and startWith() allows the course$ data to render once loaded, before the lessons data
+    const course$ = this.courseService.loadCourseById(courseId)
+      .pipe(
+        startWith(null)
+      )
+    const lessons$ = this.courseService.loadAllCourseLessons(courseId)
+      .pipe(
+        startWith([])
+      )
+
+    this.courseData$ = combineLatest([course$, lessons$])
+      .pipe(
+        map(([course, lessons]) => {
+          return {
+            course,
+            lessons
+          }
+        }),
+        tap(console.log)
+      )
+  }
+```
+
+```html
+@if (courseData$ | async; as courseData) {
+<div class="course">
+    <h2>{{ courseData.course?.description }}</h2>
+
+    @if (courseData.course?.iconUrl) {
+    <img class="course-thumbnail" [src]="courseData.course?.iconUrl">
+    }
+
+    @if (courseData.lessons.length) {
+    <table class="lessons-table mat-elevation-z7">
+        <thead>
+        <th>#</th>
+        <th>Description</th>
+        <th>Duration</th>
+        </thead>
+
+        @for (lesson of courseData.lessons; track lesson.id) {
+        <tr class="lesson-row">
+            <td class="seqno-cell">{{ lesson.seqNo }}</td>
+            <td class="description-cell">{{ lesson.description }}</td>
+            <td class="duration-cell">{{ lesson.duration }}</td>
+        </tr>
+        }
+    </table>
+    }
+</div>
+}
+```
+
+Vasco shared "image there is a much larger component fetching data from various locations and we want to combine
+all those observable sources, in this case (a much more complex screen), the Single Data Observable Pattern is a lifesaver.
+It is important to remember you don't necessarily need to use combineLatest() operator, but in most cases it will give you the bevaiour
+you are looking for which is feeding the template with the data as soon as it is available".
+
+## OnPush Change Detection
+
+
+
+👀 Resume section 6 lecture 38 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19111824#questions/13016512
