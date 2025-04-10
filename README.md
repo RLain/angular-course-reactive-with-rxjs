@@ -1739,6 +1739,77 @@ you are looking for which is feeding the template with the data as soon as it is
 
 ## OnPush Change Detection
 
+This lecture unpacked one of the many benefits of writing an application in reactive style, how simple it is to convert our application
+in order to use the OnPush change detection mode, opposed to the default mode that the application is presently using.
+
+On Push change detection is an optimised faster change detection mode than Angular has available but it is not enabled by default.
+By default, Angular will check all the template expressions for example [courses] property on the course.component.ts to determine
+if the given component should be re-rendered or not. As we can imagine the default change detection mode may not be efficient
+for a large application with a lot of Angular template expressions. It is important to understand that for most cases, the default
+change detection will work great for the majority of use cases. It is only when you have a lot of data and template expressions
+that it might become a problem. For these rare cases, where the large data we are trying to display may reduce the user experience, we
+may wish to use the Angular OnPush change detection. `When OnPush change detection is enabled, Angular will only update the component
+if we push new data to it explicitly.` Angular will not check all the expressions by default, but rather wait for explicit data to be pushed
+prior to re-rendering it.
+
+There are a couple of ways to push data to the component, one way is by using the `@Input()`, another way is by checking if any
+of the `Observables` that the template has subscribed to, has emitted a new value. This is more efficient that checking each component
+each time and for large applications should give a more responsive applications.
+
+We start by identifying components in the application that can use OnPush. The `HomeComponent` has a couple of observables
+
+Here is the change:
+```ts
+@Component({
+    changeDetection: ChangeDetectionStrategy.OnPush, //We simply added this.
+    selector: "home",
+    templateUrl: "./home.component.html",
+    styleUrls: ["./home.component.css"],
+    standalone: false,
+})
+export class HomeComponent implements OnInit {
+beginnerCourses$: Observable<Course[]>;
+advancedCourses$: Observable<Course[]>;
+
+constructor(private coursesStore: CoursesStore) {
+}
+
+ngOnInit() {
+this.reloadCourses()
+}
+
+reloadCourses() {
+this.beginnerCourses$ = this.coursesStore.filterByCategory("BEGINNER")
+
+    this.advancedCourses$ = this.coursesStore.filterByCategory("ADVANCED")
+}
+}
+````
+
+We also added to the CoursesCardListComponent which receives data via an `@Input`, and 
+the SearchLessonsComponent, along with the CourseComponent.
 
 
-👀 Resume section 6 lecture 38 https://www.udemy.com/course/rxjs-reactive-angular-course/learn/lecture/19111824#questions/13016512
+# Conclusion & key takeaways
+
+1. One of the most important takeaways is that it is `very easy to build applications in a reactive style if we keep them stateless (or as much stateless as possible).` Aka storing as little state as possible in the client/web browser and rather fetch the data from the server when needed. This allows us to build the application in a very simple way and by designing the view layer by splitting the top level (smart components) and presentational only components. 
+2. One of the key ingredients for designing applications in reactive style is to `design the service layer in order to have an observable based API` this means the methods we call on our Services don't return the data directly, instead they return observables that emit the data. This means that the view layer does not access the data directly, but rather handles and configures observables that are plugged into the view using the async pipe. 
+The advantage of this is that our components don't need to manually subscribe to the data in order to fit into the template, we can have only member variables that are observables that are passed into the template using the async pipe. The async pipe automatically takes care of the subscription
+and the unsubscription from the same observables whenever the component gets destroyed. This is done automatically without any intervention required. This means that our components are a little bit simpler, and there will be very little nested code in the components because we are simply defining observables and passing into the view
+and not manually subscribing to the observables. If we had to do this, it would quickly lead to nested subscribe calls which is a known RxJS anti-pattern. 
+3. One of the main goals of RxJS, just like promises, is to `allow us to tackle easily the asynchronous nature of Javascript` which tends to lead to 'callback hell'. By defining values as observables and not having to manually subscribe to them this leads to flat and easy-to-read code.
+4. Not all Angular components will consume the observables returned by the Service layer. This usually happens at the top level components as a given route (smart component). This is the component that knows how to access the service layer and interact with it to fetch the correct data and pass it to the template using the Angular async pipe.
+The other type of components are then purely presentational components, these take the @Input data and usually don't interact with the service layer (especially for fetching data).
+5. `For smart vs presentational components, a very important point, feel free to combine both techniques depending on the use-case`. Don't build with a "pure mindset" where they can _only_ be smart or presentational. This doesn't always make sense for every use case. Mix and match for your use case.
+For example, you might have a component that takes in some inputs and consumes data from a service layer - this is a perfectly valid solution. 
+6. The course also covered component communication in a decoupled way, sometimes components have a direct parent <> child relationship. This makes it very simple to have @Inputs() and @Outputs(). However sometimes we have components located in a very different part of the application tree, if we want components to interact in a decoupled way `the best way is to have a shared service with an observable based API`.
+By using a shared service, the components are not directly aware of each other, but only aware of the observable based service. The service that is broadcasting a new value to the remainder of the application simply calls the publicly accessible method on the shared service. 
+7. `There are situations where you may require some state management`, such as handling the user authentication profile, this exists in most applications where you may wish to load the user profile from the backend and store on the clients side available in memory. In these cases, building simple Angular Stores that internally use RxJS behaviour subject (with the benefit of this remembering the last value that was emitted). 
+8. Another use-case for using state management is improving the user experience. Expensive server side calls with extended periods of spinners is a good use case for state management either locally or globally.
+9. The `Master-detail UI pattern` sometimes doing state management does not mean using a shared observable service or centralised state management. Sometimes the correct approach is to store the state locally at the top level of the component of a given route, typically a smart components. This has the advantage that when the component is destroyed, the state will also be destroyed.
+10. The `Single Data Observable Pattern` allows us to pass one data observable into a template, removing the nesting of observables. This means our observable data is available on the template when it is received.
+11. The `OnPush Change Detection stategy` allows us to improve the performance of a large application if the application utilises @Input or Observables. Whenever an observable emits a value that is consumed by the Angular async pipe, it will be automatically marked as 'dirty' and be scheduled for rerendering.
+12. The `Simplified state management techniques` which are BehaviourSubject stores will only work well if we are trying to keep the application stateless as possible with limited state management. If we don't try to keep the application as stateless as possible, this will be unlikely to scale well in complexity.
+If you need to do full blow state management, rather use a State Management library such as NgRx (not covered in this course).
+
+
